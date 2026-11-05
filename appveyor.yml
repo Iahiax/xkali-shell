@@ -1,1 +1,18 @@
+version: 1.0.{build}
+image: Ubuntu2204
 
+environment:
+  SEGFault_SECRET:
+    secure: # replace with AppVeyor encrypted secret
+  SEGFault_HOST: us.segfault.net   # change if needed
+
+install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq openssh-client sshpass expect tmux git curl
+
+build_script:
+  - chmod +x scripts/*.sh tmux-sessions/*.sh config/*.sh || true
+  - bash scripts/connect-and-revive.sh
+  - bash scripts/backup-and-push.sh || true
+
+# Optional: schedule via AppVeyor UI or use GitHub Actions instead
