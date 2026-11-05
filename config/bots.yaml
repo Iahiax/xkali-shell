@@ -1,0 +1,24 @@
+# ============================================================
+# bots.yaml – قائمة البوتات التي سيتم تشغيلها
+# type: node | python
+# enabled: true/false
+# ============================================================
+
+bots:
+  - name: node-main
+    type: node
+    path: bots/node-bot
+    command: node index.js
+    enabled: true
+
+  - name: python-worker
+    type: python
+    path: bots/python-bot
+    command: python3 main.py
+    enabled: true
+
+# إعدادات عامة
+settings:
+  heartbeat_interval: 45        # ثواني
+  max_restarts: 10
+  log_dir: /sec/logs
