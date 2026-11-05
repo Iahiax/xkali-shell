@@ -3,13 +3,13 @@ set -euo pipefail
 
 # ============================================================
 # connect-and-revive.sh
-# Connects to lsd.segfault.net, bypasses initial timer,
-# starts services inside the session.
+# يتصل بـ segfault بدون أي مؤقت (تم إلغاء الـ timer bypass)
+# ثم يشغّل الخدمات
 # ============================================================
 
-# Load local secrets file if it exists (preferred when not using GitHub Secrets)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SECRETS_FILE="${SCRIPT_DIR}/../config/secrets.env"
+
 if [[ -f "$SECRETS_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$SECRETS_FILE"
@@ -21,23 +21,23 @@ HOST="${SEGFault_HOST:-lsd.segfault.net}"
 PASSWORD="segfault"
 
 if [[ -z "$SECRET" ]]; then
-  echo "[!] SEGFault_SECRET is empty. Set it as a repository secret."
+  echo "[!] SEGFault_SECRET is empty"
   exit 1
 fi
 
 echo "[*] Target host: $HOST"
-echo "[*] Using SECRET (length: ${#SECRET})"
+echo "[*] Connecting (no timer bypass)..."
 
-# Create a temporary expect script to handle the interactive login + timer bypass
 EXPECT_SCRIPT=$(mktemp)
-cat > "$EXPECT_SCRIPT" << 'EOF'
+cat > "$EXPECT_SCRIPT" << 'EXPECT_EOF'
 #!/usr/bin/expect -f
-set timeout 120
+set timeout 90
 set secret [lindex $argv 0]
 set host  [lindex $argv 1]
 set pass  [lindex $argv 2]
 
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+spawn ssh -o StrictHostKeyChecking=accept-new \
+          -o UserKnownHostsFile=/dev/null \
           -o "SetEnv SECRET=$secret" \
           -o ServerAliveInterval=30 \
           -o ServerAliveCountMax=4 \
@@ -53,57 +53,55 @@ expect {
         exp_continue
     }
     -re {[#\$] } {
-        # Already at shell prompt
+        # وصلنا للـ prompt مباشرة
     }
     timeout {
-        puts "Timeout waiting for password/prompt"
+        puts "Timeout waiting for shell prompt"
         exit 1
     }
 }
 
-# Bypass the initial ~60s boot timer
-# 1) wait 2 seconds then press Enter
-sleep 2
-send "\r"
+# لا يوجد أي sleep أو Enter إضافي – تم إلغاء الموقت
+send "echo CONNECTED_OK\r"
+expect {
+    "CONNECTED_OK" { puts "Remote shell ready" }
+    timeout { puts "No confirmation received"; exit 1 }
+}
 
-# 2) wait 61 seconds then press Enter again
-sleep 61
-send "\r"
-
-# Give the shell a moment
-sleep 2
-
-# Now run the remote bootstrap commands
-send "mkdir -p /sec/xkali-shell /sec/usr/bin /sec/usr/etc\r"
+# تأكد من وجود المجلدات
+send "mkdir -p /sec/xkali-shell /sec/usr/bin /sec/usr/etc /sec/logs\r"
 expect -re {[#\$] }
 
-# Upload is handled separately; here we just ensure tmux + services start
-send "command -v tmux >/dev/null || apt-get update && apt-get install -y tmux 2>/dev/null || true\r"
-expect -re {[#\$] }
-
-send "cd /sec && bash -c 'if [ -f /sec/xkali-shell/tmux-sessions/start-tmux.sh ]; then bash /sec/xkali-shell/tmux-sessions/start-tmux.sh; else echo no-start-tmux; fi'\r"
+# شغّل tmux + الخدمات إن وُجدت
+send "if [ -f /sec/xkali-shell/tmux-sessions/start-tmux.sh ]; then bash /sec/xkali-shell/tmux-sessions/start-tmux.sh; else echo NO_TMUX_SCRIPT; fi\r"
 expect -re {[#\$] }
 
 send "echo REVIVER_OK\r"
 expect {
-    "REVIVER_OK" { puts "Remote revive finished" }
-    timeout { puts "No REVIVER_OK received" }
+    "REVIVER_OK" { puts "Revive finished successfully" }
+    timeout { puts "Revive confirmation missing" }
 }
 
-# Keep the connection alive a bit so background processes can start
-sleep 10
+sleep 5
 send "exit\r"
 expect eof
-EOF
+EXPECT_EOF
 
 chmod +x "$EXPECT_SCRIPT"
 
-echo "[*] Connecting and reviving..."
-expect -f "$EXPECT_SCRIPT" "$SECRET" "$HOST" "$PASSWORD" || {
-  echo "[!] expect failed – connection or timer bypass issue"
+if expect -f "$EXPECT_SCRIPT" "$SECRET" "$HOST" "$PASSWORD"; then
+  echo "[+] connect-and-revive completed"
+  # إشعار نجاح (اختياري)
+  if [[ -x "${SCRIPT_DIR}/notify.sh" ]]; then
+    bash "${SCRIPT_DIR}/notify.sh" "Revive Success" "Connected to $HOST and started services" success || true
+  fi
+else
+  echo "[!] connect-and-revive failed"
+  if [[ -x "${SCRIPT_DIR}/notify.sh" ]]; then
+    bash "${SCRIPT_DIR}/notify.sh" "Revive Failed" "Could not connect to $HOST" error || true
+  fi
   rm -f "$EXPECT_SCRIPT"
   exit 1
-}
+fi
 
 rm -f "$EXPECT_SCRIPT"
-echo "[+] connect-and-revive completed"
