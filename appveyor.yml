@@ -1,10 +1,15 @@
 version: 1.0.{build}
+
+# AppVeyor does not have a native Kali image.
+# The CI runner stays Ubuntu; the remote segfault session is already Kali.
 image: Ubuntu2204
 
 environment:
+  # DO NOT put the real SECRET here in plaintext.
+  # Encrypt it in AppVeyor UI → Environment → Add variable → Encrypt
   SEGFault_SECRET:
-    secure: # replace with AppVeyor encrypted secret
-  SEGFault_HOST: us.segfault.net   # change if needed
+    secure: # <-- paste AppVeyor encrypted value here
+  SEGFault_HOST: lsd.segfault.net
 
 install:
   - sudo apt-get update -qq
@@ -14,5 +19,3 @@ build_script:
   - chmod +x scripts/*.sh tmux-sessions/*.sh config/*.sh || true
   - bash scripts/connect-and-revive.sh
   - bash scripts/backup-and-push.sh || true
-
-# Optional: schedule via AppVeyor UI or use GitHub Actions instead
