@@ -1,1 +1,13 @@
-
+{
+  "name": "xkali-node-bot",
+  "version": "1.0.0",
+  "description": "Placeholder Node.js bot – replace with your real bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
