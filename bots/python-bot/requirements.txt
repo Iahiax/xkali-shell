@@ -1,1 +1,4 @@
-
+# Placeholder requirements – add your real dependencies here
+# Example:
+# requests>=2.31.0
+# python-dotenv>=1.0.0
