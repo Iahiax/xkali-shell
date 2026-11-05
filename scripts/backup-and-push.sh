@@ -7,8 +7,17 @@ set -euo pipefail
 # and commits them back to this repository.
 # ============================================================
 
+# Load local secrets file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SECRETS_FILE="${SCRIPT_DIR}/../config/secrets.env"
+if [[ -f "$SECRETS_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$SECRETS_FILE"
+  echo "[*] Loaded secrets from config/secrets.env"
+fi
+
 SECRET="${SEGFault_SECRET:-}"
-HOST="${SEGFault_HOST:-segfault.net}"
+HOST="${SEGFault_HOST:-lsd.segfault.net}"
 PASSWORD="segfault"
 BACKUP_DIR="backup-$(date +%Y%m%d-%H%M%S)"
 LOCAL_BACKUP="./.backup-tmp"

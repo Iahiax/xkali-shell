@@ -3,12 +3,21 @@ set -euo pipefail
 
 # ============================================================
 # connect-and-revive.sh
-# Connects to segfault.net, bypasses initial timer,
+# Connects to lsd.segfault.net, bypasses initial timer,
 # starts services inside the session.
 # ============================================================
 
+# Load local secrets file if it exists (preferred when not using GitHub Secrets)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SECRETS_FILE="${SCRIPT_DIR}/../config/secrets.env"
+if [[ -f "$SECRETS_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$SECRETS_FILE"
+  echo "[*] Loaded secrets from config/secrets.env"
+fi
+
 SECRET="${SEGFault_SECRET:-}"
-HOST="${SEGFault_HOST:-segfault.net}"
+HOST="${SEGFault_HOST:-lsd.segfault.net}"
 PASSWORD="segfault"
 
 if [[ -z "$SECRET" ]]; then
